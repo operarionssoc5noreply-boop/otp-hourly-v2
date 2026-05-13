@@ -1,0 +1,10 @@
+services:
+  seatalk-otp-hourly:
+    build: .
+    container_name: seatalk-otp-hourly
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./google-service-account.json:/app/google-service-account.json:ro

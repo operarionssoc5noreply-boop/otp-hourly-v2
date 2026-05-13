@@ -1,0 +1,578 @@
+Send a Message
+In this section, we will introduce:
+
+How to use the webhook URL generated upon system account creation to push a message
+The rate limit of message pushing
+The supported message types and their format
+The response format and explanations of error codes
+Send a Request to the Webhook URL
+When a system account is created, a webhook URL will be generated for it. The format of the URL is as follows:
+
+https://openapi.seatalk.io/webhook/group/xxxxxxxxxxxxxxxxxxxxxx
+
+Copy
+To push a message to the group chat, send an HTTP POST request to the webhook URL. You can refer to an example below:
+
+curl -i -X POST -H 'Content-Type: application/json' -d '{ "tag": "text", "text": {"content": "Hello World!"}}' https://openapi.seatalk.io/webhook/group/xxxxxxxxxxxxxxxxxxxxxx
+
+Copy
+Message Sending Rate Limit
+Each system account can send at most 60 messages per minute.
+
+Note:
+
+If a system account sends more than 60 messages per minute, the 61st onwards messages will fail to be sent and the system account will enter a 10-minute silence period. During the silence period, no messages can be sent. After 10 minutes (after the silence period ends), the system account can continue to send messages.
+System account messages are also subject to the daily per-chat message limit shared by all bots and system accounts in the same chat. After the limit is reached, bots and system accounts will be unable to send messages in this chat until the next day.
+
+Message Types and Data Format
+Currently, the system account can send
+
+text messages with/without formatting
+images
+interactive messages
+files
+See below for the description of each message type and its format.
+
+Text Message with/without Formatting
+Example
+
+
+
+Parameters
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default Value
+
+tag
+
+string
+
+Yes
+
+N/A
+
+The type of the message - be it "text" in this case
+
+N/A
+
+text
+
+object
+
+Yes
+
+N/A
+
+The text message object
+
+N/A
+
+∟format
+
+int
+
+No
+
+N/A
+
+The formatting to use in the content of the text message. Can be:
+
+1: Formatted text message (Markdown)
+
+2: Plain text message
+
+1
+
+∟content
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 4096 characters
+
+- The content of the text message with markdown syntax supported
+
+- Refer to this document for supported markdown elements
+
+N/A
+
+∟mentioned_list
+
+string[]
+
+No
+
+N/A
+
+- The list of SeaTalk IDs of the group chat members to @ in the message
+
+- The users with the SeaTalk IDs must be members of this group chat for the mention to be successful
+
+- The mention tag will be placed at the beginning of the message
+
+N/A
+
+∟mentioned_email_list
+
+string[]
+
+No
+
+N/A
+
+- The list of emails of the group chat members to @ in the message
+
+- The users with the emails must be members of this group chat for the mention to be successful
+
+- The mention tag will be placed at the beginning of the message
+
+N/A
+
+∟at_all
+
+boolean
+
+No
+
+N/A
+
+- Whether to @All in the message
+
+- Notifying all group chat members will succeed only if the "Notify all members with @All" setting is turned on in the group chat and the "at_all" is set to true
+
+- The mention tag will be placed at the beginning of the message
+
+N/A
+
+Use the following body format (JSON) to push a text message to the group chat:
+
+{
+    "tag": "text",
+    "text": {
+        "format": 1,
+        "content": "Hi <mention-tag target=\"seatalk://user?id=0\"/>, this is a text message with supported formats.\nYou would see:\n1. **bold**\n2. *italic*\n3. `inline code`\n- List item 1\n- List item 2\n```\nCode Block\n```"
+    }
+}
+
+Copy
+Image
+Example
+
+
+
+Parameters
+
+Parameter
+
+Type
+
+Mandatory
+
+Size Limit
+
+Description
+
+tag
+
+string
+
+Yes
+
+N/A
+
+- The message type
+
+- When sending an image message, the value is fixed to "image"
+
+image_base64
+
+object
+
+Yes
+
+N/A
+
+The image message object
+
+∟content
+
+string
+
+Yes
+
+The maximum size of an image is 5MB after encoding
+
+- The Base64-encoded image file
+
+- Only PNG, JPG and GIF images are supported
+
+Use the following body format (JSON) to push an image message to the group chat:
+
+{
+    "tag": "image",
+    "image_base64": {
+        "content": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQYV2P8/uPnfwYGBgZGGAMAVe4H0WDm+2kAAAAASUVORK5CYII="
+    }
+}
+
+Copy
+Example of Sending an Image in Python Language
+
+BOT_WEBHOOK_URL: Text = "https://openapi.seatalk.io/webhook/group/xxxxxxxxxxxxxxxxxxxxxx"
+json_payload: Dict
+with open("example.gif", "rb") as f:
+   raw_image_content: bytes = f.read()
+   base64_encoded_image: str = base64.b64encode(raw_image_content).decode("latin-1")
+   json_payload = {"tag": "image","image_base64": {"content": base64_encoded_image}}
+httpx.post(url=BOT_WEBHOOK_URL, json=json_payload)
+
+Copy
+Interactive Message
+Requires SeaTalk App version 3.38.1 or later
+Example
+
+
+
+Parameters
+
+Parameter
+
+Type
+
+Mandatory
+
+Size Limit
+
+Description
+
+tag
+
+string
+
+Yes
+
+N/A
+
+- The message type
+
+- When sending an interactive message, the value is fixed to "interactive_message"
+
+interactive_message
+
+object
+
+Yes
+
+N/A
+
+The interactive message object
+
+∟elements
+
+object
+
+Yes
+
+N/A
+
+Please check Build a Card to know how to use interactive message
+
+Use the following body format (JSON) to push an interactive message to the group chat:
+
+{
+    "tag": "interactive_message",
+    "interactive_message": {
+        "elements": [
+            {
+                "element_type": "title",
+                "title": {
+                    "text": "Interactive Message Title"
+                }
+            },
+            {
+                "element_type": "description",
+                "description": {
+                    "text": "Interactive Message Description"
+                }
+            },
+            {
+                "element_type": "button",
+                "button": {
+                    "button_type": "callback",
+                    "text": "Callback Button",
+                    "value": "test"
+                }
+            },
+            {
+                "element_type": "button",
+                "button": {
+                    "button_type": "redirect",
+                    "text": "rn link",
+                    "mobile_link": {
+                        "type": "rn",
+                        "path": "/webview",
+                        "params": {}
+                    }
+                }
+            }
+        ]
+    }
+}
+
+Copy
+Response Parameter
+Result Fields
+
+Parameters
+
+Type
+
+Description
+
+code
+
+int
+
+Refer to Error Code for explanations
+
+message_id
+
+string
+
+The id of the sent out message
+
+Response Sample
+
+{
+    "code": 0,
+    "msg": "success (ref:6878aaa86e7a01b3)",
+    "message_id": "ytFylX61dA1vyvoRr_vacjxLM2MapTsh29vMO7DIa3s"
+}
+
+Copy
+File
+Example
+
+
+
+Parameters
+
+Parameter
+
+Type
+
+Mandatory
+
+Size Limit
+
+Description
+
+tag
+
+string
+
+Yes
+
+N/A
+
+- The message type
+
+- When sending a file message, the value is fixed to "file"
+
+file
+
+object
+
+Yes
+
+N/A
+
+The file message object
+
+∟content
+
+string
+
+Yes
+
+Maximum 5MB and Minimum 10B after encoding
+
+- The Base64-encoded file
+
+- All file types are suppported including Images (only PNT, JPG, and GIF have preview in client)
+
+∟filename
+
+string
+
+Yes
+
+100 characters
+
+The file name with extension; files with no extension specified in name will be sent as unidentified files
+
+Use the following body format (JSON) to push an image message to the group chat:
+
+{
+    "tag": "file",
+    "file": {
+        "filename": "demo.txt",
+        "content": "VGhpcyBpcyBhIGRlbW8gdGV4dCBmaWxlLgo="
+    }
+}
+
+Copy
+Response Parameter
+Result Fields
+
+Parameters
+
+Type
+
+Description
+
+code
+
+int
+
+Refer to Error Code for explanations
+
+message_id
+
+string
+
+The id of the sent out message
+
+Response Sample
+
+{
+    "code": 0,
+    "msg": "success (ref:6878aaa86e7a01b3)",
+    "message_id": "ytFylX61dA1vyvoRr_vacjxLM2MapTsh29vMO7DIa3s"
+}
+
+Copy
+Markdown (Phasing out)
+**Note**:
+
+SeaTalk is phasing out the "Markdown” message type in favor of the more flexible markdown formatting syntax concept that can be embedded into not only text messages but all applicable message types.
+It is recommended to use the "text" message type in producing formatted text messages.
+Example
+
+
+
+Parameters
+
+Parameter
+
+Type
+
+Mandatory
+
+Size Limit
+
+Description
+
+tag
+
+string
+
+Yes
+
+N/A
+
+- The message type
+
+- When sending a markdown message, the value is fixed to "markdown"
+
+markdown
+
+object
+
+Yes
+
+N/A
+
+The markdown message object
+
+∟content
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 4096 characters
+
+- The content of the markdown message using the Markdown syntax
+
+- See below for supported Markdown elements
+
+Use the following body format (JSON) to push a Markdown message to the group chat:
+
+{
+    "tag": "markdown",
+    "markdown": {
+        "content": "<mention-tag target=\"seatalk://user?id=0\"/> This is a Markdown msg.\n\nYou should see:\n\n1. __bold__\n\n2. *Italics*\n\n- List item 1\n\n- List item 2"
+    }
+}
+
+Copy
+Supported Markdown Elements
+
+The following Markdown elements are supported:
+
+Element
+
+Effect
+
+Bold
+
+This is a bold word
+
+Italic
+
+This is an italic word
+
+Ordered list
+
+1. Item 1
+
+2. Item 2
+
+Unordered list
+
+- Item 1
+
+- Item 2
+
+Note:
+
+To make a new line, use two newline characters (i.e., \n\n) or the <br /> line break tag (note the space in between).
+However, to make consecutive new lines, only multiple <br /> line break tags (i.e., <br /><br />) are allowed.
+To escape a certain Markdown format, use two "\" characters. E.g., "\\_"
+Use Mention Tags in Markdown Messages
+
+You can mention a particular user or all group chat members in a Markdown message. To do so, include a mention tag in the message content by following the format below:
+
+To mention a particular user using his/her email: <mention-tag target="seatalk://user?email=xxxx@xxx.com"/>
+To mention a particular user using his/her SeaTalk ID: <mention-tag target="seatalk://user?id=xxxxxxx"/>
+To mention all group chat members: <mention-tag target="seatalk://user?id=0"/>
+Note:
+
+Notifying all group chat members will succeed only if the "Notify all members with @All" setting is turned on in the group chat
+Response
+SeaTalk will return HTTP status 200 upon successful request. However, this does not mean that the message is successfully pushed to the group chat. A code is returned in the response body for you to check whether any error is detected. Any non-zero code means an error has occurred. Learn more about System Account Error Codes here.

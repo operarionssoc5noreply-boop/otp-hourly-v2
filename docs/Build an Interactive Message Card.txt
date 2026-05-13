@@ -1,0 +1,831 @@
+Build an Interactive Message Card
+As mentioned in Overview of interactive message cards, every interactive message card consists of different elements that can be customised. As a common capability, no matter what communication channel an interactive message card is sent in, the card structure and the building method will always follow the same set of rules.
+
+This document will introduce the structure of an interactive message card, the card elements currently supported, and how to build an interactive message card so that you can design one that best suits your need. We also mention how to internationalise the content of an interactive message card in the end so even if your app users are a global audience, they can see the message in their own preferred language on SeaTalk.
+
+Interactive Message Card Structure
+Below is a typical example of an interactive message card. It has one title, one description, one image, one button of the redirect type, and two buttons of the callback type. They are stacked on top of each other from top to bottom.
+
+
+
+The structure of an interactive message card is like a stack: from top to bottom, different elements are stacked on top of each other to form a card. One of the special characteristics of interactive message cards is that they are very flexible. You can imagine an interactive message card as a lego that consists of different pieces.
+
+As a developer, you can build the lego in many ways. When you become savvier about building an interactive message card, you have a lot of room to play with card customisation. If you are a beginner, there's no need to worry since we have provided some sample code for you to get started with testing out this common capability so you can get more familiar as you use it more. 
+
+Interactive Message Card Elements
+Currently, 4 element types are supported under interactive message cards: titles, descriptions, buttons and images. For buttons, there are two sub-types: callback buttons and redirect buttons. In this section, we will introduce what each element is about and what are the parameters that go under each element type.
+
+Every interactive message card element type has some attributes (the parameters that are enclosed in the element object). Some attributes are similar across element types, while some others are specific to a particular element type. In this section, we will introduce each element type - what it looks like, what attributes it has and some tips on how to use it.
+
+Title
+
+
+Titles serve as the 1st-level information that conveys the main topic of the message. Every message should serve a clear purpose so users can quickly understand what the message is about. Thus, we highly recommend you put a meaningful and succinct title for every interactive message card. That makes the experience for your app users better, as it's usually the title that first catches a user's attention and makes a user determine whether to keep reading or not.
+
+The element type for titles is "title". Every title has only one attribute, text, which has a maximum length of 120 characters. See below for the element composition and sample code of a title.
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default
+
+Sample
+
+element_type
+
+string
+
+Yes
+
+ 
+
+The type of the card element
+
+N/A
+
+"title"
+
+title
+
+object
+
+Yes
+
+N/A
+
+The title object
+
+N/A
+
+ 
+
+∟text
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 120 characters
+
+The title text
+
+N/A
+
+"Mail pending for your collection"
+
+{
+    "element_type": "title",
+    "title": {
+        "text": "Mail pending for collection"
+    }
+}
+
+Copy
+Description
+
+
+Descriptions are the 2nd-level information that gives more detail to explain the main topic of the message. You can understand them as the main body content. It's recommended to have at least one description so that users have sufficient context to understand what the message is about. A maximum of five descriptions are supported for one interactive message card.
+
+The element type for descriptions is "description". Every description has only one attribute, text, which has a maximum length of 1000 characters. See below for the element composition and sample code of a description.
+
+Markdown format is supported on SeaTalk App version v3.48 or later
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default
+
+Sample
+
+element_type
+
+string
+
+Yes
+
+ 
+
+The type of the card element
+
+N/A
+
+"description"
+
+description
+
+object
+
+Yes
+
+N/A
+
+The description object
+
+N/A
+
+ 
+
+∟format
+
+int
+
+No
+
+N/A
+
+The formatting to use in the content of the text message. Can be
+
+1: Formatted text message (Markdown)
+
+2: Plain text message
+
+ 
+
+1
+
+1
+
+∟text
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 1000 characters
+
+The description text
+
+ 
+
+- Refer to this document for supported markdown elements
+
+N/A
+
+"You have a mail pending for collection. Please visit the office lobby during office hours to collect it."
+
+{
+    "element_type": "description",
+    "description": {
+        "format": 1,
+        "text": "Kindly note there's **no meeting** today."
+    }
+}
+
+Copy
+Button
+Buttons are interactive elements that will trigger some action when users tap on them. The element type for buttons is "button". Every button, regardless of its button type, will have a text attribute that determines the content shown on the button. Two kinds of buttons are supported: callback buttons and redirect buttons.
+
+Callback Button
+
+
+Callback buttons will trigger a callback event that passes a predefined value to the configured callback URL of an app when users tap on them. The button type for callback buttons is "callback".
+
+Each callback button must have a "value" attribute that refers to the value being passed back to the app server when users tap on it. Callback buttons are used when an interactive message card aims to get some information or response from the user. For security considerations, it is recommended to use a randomized per-user value and store its mapping to the user’s employee code or email; on callback, validate that the value is legitimate and matches the triggering user.
+
+A typical example is an approval notification card that has two callback buttons, one with the text "Approve" and the value "approve" and the other with the text "Reject" and the value "reject". When users tap on the "Approve" button, an event callback request will be sent to the app behind the interactive message card with the value "approve" inside the request body (see Message Events for detail). The same goes for the rejection case.
+
+The flexibility of interactive message card elements means that you can customise the button text and the callback value based on your own need. See below for the element composition and sample code of a callback button.
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default
+
+Sample
+
+element_type
+
+string
+
+Yes
+
+ 
+
+The type of the card element
+
+N/A
+
+"button"
+
+button
+
+object
+
+Yes
+
+ 
+
+The button object
+
+N/A
+
+ 
+
+∟button_type
+
+string
+
+Yes
+
+ 
+
+The button type. Can be "callback" or "redirect"
+
+N/A
+
+"callback"
+
+∟text
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 50 characters
+
+The button text
+
+N/A
+
+"I have collected it"
+
+∟value
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 200 characters
+
+The value passed back when users tap on this button
+
+N/A
+
+"collected"
+
+{
+    "element_type": "button",
+    "button": {
+        "button_type": "callback",
+        "text": "Approve",
+        "value": "approve"
+    }
+}
+
+Copy
+Redirect Button
+
+
+Redirect buttons will bring users to a specific app page when users tap on them.
+
+Each redirect button can have one "mobile_link" object and one "desktop_link" object that configures the specific app link for redirection for SeaTalk mobile clients and the SeaTalk desktop client respectively. Depending on how your app is designed, the app link can be different on mobile versus desktop. It's also possible that your app is only supported on mobile or desktop. In this case, when users tap on the redirect button on a client where your app isn't supported, they will see a toast message guiding them to check the card on the client where your app is supported.
+
+Redirect buttons are useful when your app wants to engage with app users outside a web/RN app. They serve as a lightweight entry point for your app. See below for the element composition and sample code of a redirect button.
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default
+
+Sample
+
+element_type
+
+string
+
+Yes
+
+ 
+
+The type of the card element
+
+N/A
+
+"button"
+
+button
+
+object
+
+Yes
+
+ 
+
+The button object
+
+N/A
+
+ 
+
+∟button_type
+
+string
+
+Yes
+
+ 
+
+The button type. Can be "callback" or "redirect"
+
+N/A
+
+"callback"
+
+∟text
+
+string
+
+Yes
+
+Min: 1 character
+
+Max: 50 characters
+
+The button text
+
+N/A
+
+"I have collected it"
+
+∟mobile_link
+
+object
+
+No
+
+N/A
+
+The mobile link object that specifies the destination when the user taps on the button on mobile
+
+N/A
+
+ 
+
+  ∟type
+
+string
+
+No
+
+ 
+
+The type of the mobile link. Can be "rn" or "web". Must be filled if a mobile_link object is provided
+
+ 
+
+"rn"
+
+  ∟path
+
+string
+
+No
+
+ 
+
+The path of the RN App link, or the full URL of the web app URL, or the full URL of an external website. Must be filled if a mobile_link object is provided
+
+For RN app paths, they must start with "/".
+
+ 
+
+"/path/to/rn/page"
+
+  ∟params
+
+object
+
+No
+
+ 
+
+The parameters to be passed along the RN link path
+
+ 
+
+ 
+
+∟desktop_link
+
+object
+
+No
+
+N/A
+
+The desktop link object that specifies the destination when the user taps on the button on desktop
+
+N/A
+
+ 
+
+ ∟type
+
+string
+
+No
+
+ 
+
+The type of the desktop link. Currently, only "web" is supported. Must be filled if a desktop_link object is provided
+
+ 
+
+"web"
+
+ ∟path
+
+string
+
+No
+
+ 
+
+The full link of the web app, or the full URL of an external website page. Must be filled if a desktop_link object is provided
+
+ 
+
+"https://webApp.com/somePath"
+
+{
+    "element_type": "button",
+    "button": {
+        "button_type": "redirect",
+        "text": "View details",
+        "mobile_link": {
+            "type": "rn",
+            "path": "/path/to/rn/page",
+            "params": {
+                "xxxx": "xxxx"
+            }
+        },
+        "desktop_link": {
+            "type": "web",
+            "path": "https://webApp.com/somePath"
+        }
+    }
+}
+
+Copy
+Button Group
+Button groups enable you to lay out up to 3 callback or redirect buttons in a single line, saving vertical space and increasing message readability for your users. 
+
+
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default
+
+Sample
+
+element_type
+
+string
+
+Yes
+
+N/A
+
+The type of the card element
+
+N/A
+
+"button_group"
+
+button_group
+
+[]object
+
+Yes
+
+Min: 1
+
+Max: 3
+
+List of button objects to be placed in the Button Group.
+
+N/A
+
+ 
+
+{
+    "element_type": "button_group",
+    "button_group": [
+        {
+            "button_type": "callback",
+            "text": "Reject",
+            "value": "reject"
+        },
+        {
+            "button_type": "redirect",
+            "text": "View details",
+            "mobile_link": {
+                "type": "rn",
+                "path": "/path/to/rn/page",
+                "params": {
+                    "xxxx": "xxxx"
+                }
+            },
+            "desktop_link": {
+                "type": "web",
+                "path": "https://webApp.com/somePath"
+            }
+        }
+    ]
+}
+
+                     "desktop_link": {
+                         "type": "web",
+                         "path": "https://webApp.com/somePath"
+                    }
+                }
+            ]}
+
+Copy
+Image
+Image is supported on SeaTalk App version v3.60 or later
+
+Images add instant visual context so recipients can view details at a glance.
+
+
+
+Parameter
+
+Type
+
+Mandatory
+
+Length/Size Limit
+
+Description
+
+Default
+
+Sample
+
+element_type
+
+string
+
+Yes
+
+N/A
+
+The type of the card element
+
+N/A
+
+"image"
+
+image	object	Yes	
+N/A
+
+The image object	N/A	
+ 
+
+∟content	string	
+Yes
+
+Maximum 5MB after encoding
+
+ 
+
+The Base64-encoded image
+Only PNG, JPG and GIF images are supported
+ 
+
+N/A	 
+{
+  "element_type": "image",
+  "image": {
+    "content": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQYV2P8/uPnfwYGBgZGGAMAVe4H0WDm+2kAAAAASUVORK5CYII="
+  }
+}
+
+Copy
+Card Building Rules
+To ensure a good end-user experience, there are some important rules of building an interactive message card that you need to pay attention to. See the table below for the amount limit for each element type.
+
+Element
+
+Mandatory
+
+Amount of elements in a card
+
+Sequence Restriction
+
+title
+
+No
+
+≤3
+
+No restriction
+
+description
+
+No
+
+≤5
+
+No restriction
+
+button (callback + redirect)
+
+No
+
+≤5
+
+No restriction
+
+button group
+
+No
+
+≤3
+
+No restriction
+
+image
+
+No
+
+≤3
+
+No restriction
+
+Like other message types supported on SeaTalk Open Platform, interactive message cards have a "tag" field specifying their message type. The message type tag for interactive message cards is "interactive_message".
+
+We have walked you through the interactive message card structure and elements. To build one card then is to:
+
+Stack the elements needed while following the card building rules in an "elements" object array. The sequence of the array elements corresponds to the top-to-bottom sequence of card elements shown on the card.
+Enclose the elements array inside an object called "default" or any other language codes supported (see "Multi-language Support" below for detail) if you want to customise the message content in different languages. The "default" version is mandatory
+Enclose all sets of message content objects inside the outermost object called "interactive_message", which refers to the message type.
+Here is another simple example of an interactive message card:
+
+
+
+To build this card, we need a title, a description and two callback buttons. So the interactive message card object will be:
+
+"interactive_message": {
+    "elements": [
+        {
+            "element_type": "title",
+            "title": {
+                "text": "Leave application request"
+            }
+        },
+        {
+            "element_type": "description",
+            "description": {
+                "format": 1,
+                "text": "Jane Thompson has applied to take a leave from March 3rd to March 5th. Leave reason: sick leave."
+            }
+        },
+        {
+            "element_type": "button",
+            "button": {
+                "button_type": "callback",
+                "text": "Approve",
+                "value": "approve"
+            }
+        },
+        {
+            "element_type": "button",
+            "button": {
+                "button_type": "callback",
+                "text": "Reject",
+                "value": "reject"
+            }
+        }
+    ]
+}
+
+Copy
+Multi-language Support
+Only available for "Send Service Notice (New)" API
+Not available for Bot and System Account
+Another powerful ability of interactive message cards is internationalisation, which allows you as developers to personalise the content language of an interactive message card based on the preferred language of the app users who will receive it.
+
+In the Card Building Rules section, we have introduced you to the typical structure of an interactive message card: an "interactive_message" object that encloses a "default" object which contains an "elements" array. The "default" object contains the default content that will be shown to the user if an object with the user's preferred language as its name isn't found. In other words, if SeaTalk detects that there's an object under "interactive_message" whose name matches the user's preferred language code, we will show the elements specified under that object to this user. However, if no match is found, we will always fall back to showing the content specified under the "default" object. To ensure that at least one version can be properly shown, the "default" object is mandatory.
+
+To customise the content language, firstly you need to know the app user's preferred language. You can retrieve a user's preferred language through Get User Language Preference API. Then, you just need to use the language code as the object name under "interactive_message" to specify the card content for another language.
+
+For the languages supported by SeaTalk Open Platform, refer to Language Code.
+
+We use the same example like the one shown in the section above to illustrate how to internationalist the card content. The card has two languages configured: English and Simplified Chinese. Depending on the user's preferred language setting on SeaTalk, she will see the card content in either English or Chinese.
+
+"interactive_message": {
+    "default": {
+        "elements": [
+            {
+                "element_type": "title",
+                "title": {
+                    "text": "Leave application request"
+                }
+            },
+            {
+                "element_type": "description",
+                "description": {
+                    "text": "Jane Thompson has applied to take a leave from March 3rd to March 5th. Leave reason: sick leave."
+                }
+            },
+            {
+                "element_type": "button",
+                "button": {
+                    "button_type": "callback",
+                    "text": "Approve",
+                    "value": "approve"
+                }
+            },
+            {
+                "element_type": "button",
+                "button": {
+                    "button_type": "callback",
+                    "text": "Reject",
+                    "value": "reject"
+                }
+            }
+        ]
+    },
+    "zh-Hans": {
+        "elements": [
+            {
+                "element_type": "title",
+                "title": {
+                    "text": "请假申请"
+                }
+            },
+            {
+                "element_type": "description",
+                "description": {
+                    "text": "Jane Thompson 提交了3月3日至3月5日的请假申请。请假理由：病假。"
+                }
+            },
+            {
+                "element_type": "button",
+                "button": {
+                    "button_type": "callback",
+                    "text": "批准",
+                    "value": "approve"
+                }
+            },
+            {
+                "element_type": "button",
+                "button": {
+                    "button_type": "callback",
+                    "text": "拒绝",
+                    "value": "reject"
+                }
+            }
+        ]
+    }
+}
+
+Copy
+Internationalising card content doesn't mean that the callback value of a callback button has to be internationalized too. You can always adjust the callback value based on your app's processing logic.
+
