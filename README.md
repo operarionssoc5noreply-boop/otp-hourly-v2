@@ -16,6 +16,7 @@ Lightweight hourly bot server for SeaTalk. On each clock-hour slot, the service 
 
 - [bot_server.py](bot_server.py): receives SeaTalk callback events, renders the report image hourly, and sends the SeaTalk bot message.
 - [docs/render_web_service_deployment.md](docs/render_web_service_deployment.md): deployment steps for the bot service.
+- [docs/cloudflare_single_seatalk_callback_setup.md](docs/cloudflare_single_seatalk_callback_setup.md): Cloudflare Worker setup for routing one SeaTalk callback URL to two bot servers.
 
 ## Config
 
@@ -116,4 +117,5 @@ docker rm -f seatalk-otp-hourly
 - The container image still requires both `poppler-utils` and `imagemagick`.
 - The Google service account must have access to the target spreadsheet so the bot can export the report range.
 - Render deployment steps are documented in [docs/render_web_service_deployment.md](docs/render_web_service_deployment.md).
+- Cloudflare single-callback gateway setup is documented in [docs/cloudflare_single_seatalk_callback_setup.md](docs/cloudflare_single_seatalk_callback_setup.md).
 - UptimeRobot setup steps are documented in [docs/uptimerobot_setup.md](docs/uptimerobot_setup.md).
