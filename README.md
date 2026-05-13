@@ -1,16 +1,16 @@
 # OTP Hourly
 
-Lightweight hourly bot server for SeaTalk. On each clock-hour slot, the service renders a Google Sheets report range as an image, reads `AE2` for the FMS update timestamp, and sends one interactive message card to a SeaTalk group through a SeaTalk bot app.
+Lightweight hourly bot server for SeaTalk. On each clock-hour slot, the service renders Google Sheets report ranges as images, reads each card's FMS update cell, and sends interactive message cards to a SeaTalk group through a SeaTalk bot app.
 
 ## Flow
 
 1. SeaTalk verifies the app callback URL at `POST /seatalk/callback`.
 2. When the bot is added to a group, SeaTalk sends `bot_added_to_group_chat`.
 3. The bot stores that group ID for future sends.
-4. Every clock-hour slot, the bot exports the configured Google Sheets range as PDF.
+4. Every clock-hour slot, the bot exports the configured Google Sheets ranges as PDFs.
 5. The bot converts the PDF to PNG with Poppler.
 6. The bot trims and optimizes the PNG with ImageMagick.
-7. The bot sends one interactive SeaTalk card with the rendered image and report link.
+7. The bot sends interactive SeaTalk cards with the rendered images and report link.
 
 ## Main Parts
 
@@ -77,13 +77,19 @@ The callback request signature is verified with `SEATALK_SIGNING_SECRET`.
 
 ## Message Format
 
-Each hourly schedule slot produces one interactive message card:
+Each hourly schedule slot produces two interactive message cards:
 
 ```text
 [Interactive Message]
-Title: Update as of h:mm AM/PM Mmm-dd
+Title: SOC 5 OTP-1 Hourly Update as of h:mm AM/PM Mmm-dd
 Description: FMS Update: 1:47 PM Apr-18
 Image: rendered report snapshot
+Button: View Report Link
+
+[Interactive Message]
+Title: OTP-2 Hourly Update as of h:mm AM/PM Mmm-dd
+Description: FMS Update: <value from otp2_hourly!I3>
+Image: rendered otp2_hourly!A1:J32 snapshot
 Button: View Report Link
 ```
 

@@ -33,8 +33,12 @@ SCOPES = [
 ]
 MAX_SEATALK_IMAGE_BYTES = 5 * 1024 * 1024
 FMS_UPDATE_CELL_A1 = "AD1"
+OTP2_TAB_NAME = "otp2_hourly"
+OTP2_CAPTURE_RANGE_A1 = "otp2_hourly!A1:J32"
+OTP2_FMS_UPDATE_CELL_A1 = "I3"
 GROUP_CONFIG_RANGE_A1 = "bot_config!A2:A"
 ENV_LINE_PATTERN = re.compile(r"^\s*([A-Za-z0-9_]+)\s*[:=]\s*(.*?)\s*$")
+SIMPLE_SHEET_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
 EVENT_VERIFICATION = "event_verification"
 BOT_ADDED_TO_GROUP_CHAT = "bot_added_to_group_chat"
 REQUIRED_CONFIG_FIELDS = (
@@ -74,6 +78,14 @@ class Config:
     image_border_px: int
     image_resize_width: int
     use_env_proxy: bool
+
+
+@dataclass(frozen=True)
+class ImageCardSpec:
+    title_prefix: str
+    tab_name: str
+    capture_range: str
+    fms_update_cell_a1: str
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -248,6 +260,25 @@ def build_card_description(current_value: str | None) -> str:
     return f"FMS Update: {normalized_value}"
 
 
+def split_sheet_qualified_range(range_name: str, default_tab_name: str) -> tuple[str, str]:
+    normalized_range = str(range_name or "").strip()
+    if "!" not in normalized_range:
+        return default_tab_name, normalized_range
+
+    tab_name, a1_range = normalized_range.rsplit("!", 1)
+    tab_name = tab_name.strip()
+    if tab_name.startswith("'") and tab_name.endswith("'"):
+        tab_name = tab_name[1:-1].replace("''", "'")
+    return tab_name or default_tab_name, a1_range.strip()
+
+
+def build_sheet_range(tab_name: str, a1_range: str) -> str:
+    if SIMPLE_SHEET_NAME_PATTERN.match(tab_name):
+        return f"{tab_name}!{a1_range}"
+    escaped_tab_name = tab_name.replace("'", "''")
+    return f"'{escaped_tab_name}'!{a1_range}"
+
+
 def format_sheet_datetime_value(value: Any) -> str:
     if value is None:
         return ""
@@ -272,7 +303,7 @@ def format_sheet_datetime_value(value: Any) -> str:
 
 
 def build_interactive_message_payload(
-    timestamp: str,
+    title_text: str,
     description: str,
     report_link: str,
     image_bytes: bytes,
@@ -284,7 +315,7 @@ def build_interactive_message_payload(
                 {
                     "element_type": "title",
                     "title": {
-                        "text": f"SOC 5 OTP Hourly as of {timestamp}",
+                        "text": title_text,
                     },
                 },
                 {
@@ -330,7 +361,7 @@ class SeatalkBotService:
         self.http_opener = build_http_opener(config.use_env_proxy)
         self.sheets_service = build("sheets", "v4", credentials=self.credentials, cache_discovery=False)
 
-        self.sheet_gid: int | None = None
+        self.sheet_gid_by_tab_name: dict[str, int] = {}
         self.run_lock = threading.Lock()
         self.stop_event = threading.Event()
         self.scheduler_thread: threading.Thread | None = None
@@ -421,9 +452,9 @@ class SeatalkBotService:
         )
 
         try:
-            image_bytes = self.render_report_image()
-            payload = self.build_message_payload(scheduled_for, image_bytes)
-            self.send_seatalk_group_message(payload)
+            payloads = self.build_hourly_card_payloads(scheduled_for)
+            for payload in payloads:
+                self.send_seatalk_group_message(payload)
             self.last_error = None
             self.last_run_succeeded_at = datetime.now(self.timezone)
             LOGGER.info("Bot cycle completed successfully.")
@@ -439,7 +470,38 @@ class SeatalkBotService:
     def load_initial_group_ids(self) -> list[str]:
         return dedupe_non_empty_values([self.config.seatalk_group_id, self.load_saved_group_id()])
 
-    def render_report_image(self) -> bytes:
+    def build_image_card_specs(self) -> list[ImageCardSpec]:
+        primary_tab_name, primary_capture_range = split_sheet_qualified_range(
+            self.config.capture_range,
+            self.config.tab_name,
+        )
+        otp2_tab_name, otp2_capture_range = split_sheet_qualified_range(
+            OTP2_CAPTURE_RANGE_A1,
+            OTP2_TAB_NAME,
+        )
+        return [
+            ImageCardSpec(
+                title_prefix="SOC 5 OTP Hourly as of",
+                tab_name=primary_tab_name,
+                capture_range=primary_capture_range,
+                fms_update_cell_a1=FMS_UPDATE_CELL_A1,
+            ),
+            ImageCardSpec(
+                title_prefix="OTP-2 Hourly Update as of",
+                tab_name=otp2_tab_name,
+                capture_range=otp2_capture_range,
+                fms_update_cell_a1=OTP2_FMS_UPDATE_CELL_A1,
+            ),
+        ]
+
+    def build_hourly_card_payloads(self, scheduled_for: datetime) -> list[dict[str, Any]]:
+        payloads: list[dict[str, Any]] = []
+        for card_spec in self.build_image_card_specs():
+            image_bytes = self.render_report_image(card_spec)
+            payloads.append(self.build_message_payload(scheduled_for, card_spec, image_bytes))
+        return payloads
+
+    def render_report_image(self, card_spec: ImageCardSpec) -> bytes:
         runtime_root = Path(".runtime")
         runtime_root.mkdir(exist_ok=True)
 
@@ -450,7 +512,7 @@ class SeatalkBotService:
             raw_png_path = workdir / "sheet-range.png"
             final_png_path = workdir / "sheet-range-final.png"
 
-            pdf_path.write_bytes(self.export_range_to_pdf())
+            pdf_path.write_bytes(self.export_range_to_pdf(card_spec))
             self.convert_pdf_to_png(pdf_path, png_prefix)
             self.optimize_png(raw_png_path, final_png_path)
 
@@ -462,8 +524,8 @@ class SeatalkBotService:
         if len(image_bytes) > MAX_SEATALK_IMAGE_BYTES:
             raise ValueError("Rendered PNG exceeds SeaTalk's 5MB image size limit.")
 
-    def export_range_to_pdf(self) -> bytes:
-        gid = self.fetch_sheet_gid()
+    def export_range_to_pdf(self, card_spec: ImageCardSpec) -> bytes:
+        gid = self.fetch_sheet_gid(card_spec.tab_name)
         self.credentials.refresh(self.auth_request)
 
         query = parse.urlencode(
@@ -471,7 +533,7 @@ class SeatalkBotService:
                 "exportFormat": "pdf",
                 "format": "pdf",
                 "gid": str(gid),
-                "range": self.config.capture_range,
+                "range": card_spec.capture_range,
                 "portrait": "false",
                 "fitw": "true",
                 "sheetnames": "false",
@@ -504,9 +566,9 @@ class SeatalkBotService:
             raise RuntimeError(f"Google Sheets export did not return a PDF. Body starts with: {snippet}")
         return pdf_bytes
 
-    def fetch_sheet_gid(self) -> int:
-        if self.sheet_gid is not None:
-            return self.sheet_gid
+    def fetch_sheet_gid(self, tab_name: str) -> int:
+        if tab_name in self.sheet_gid_by_tab_name:
+            return self.sheet_gid_by_tab_name[tab_name]
 
         response = (
             self.sheets_service.spreadsheets()
@@ -518,13 +580,13 @@ class SeatalkBotService:
         )
         for sheet in response.get("sheets", []):
             properties = sheet.get("properties", {})
-            if properties.get("title") == self.config.tab_name:
-                self.sheet_gid = int(properties["sheetId"])
-                return self.sheet_gid
-        raise ValueError(f"Tab not found in spreadsheet: {self.config.tab_name}")
+            if properties.get("title") == tab_name:
+                self.sheet_gid_by_tab_name[tab_name] = int(properties["sheetId"])
+                return self.sheet_gid_by_tab_name[tab_name]
+        raise ValueError(f"Tab not found in spreadsheet: {tab_name}")
 
-    def fetch_fms_update_value(self) -> str:
-        range_name = f"{self.config.tab_name}!{FMS_UPDATE_CELL_A1}"
+    def fetch_fms_update_value(self, card_spec: ImageCardSpec) -> str:
+        range_name = build_sheet_range(card_spec.tab_name, card_spec.fms_update_cell_a1)
         try:
             response = (
                 self.sheets_service.spreadsheets()
@@ -545,7 +607,7 @@ class SeatalkBotService:
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning("Failed to read %s from Google Sheets: %s", range_name, exc)
 
-        LOGGER.warning("Cell %s was blank or unavailable.", FMS_UPDATE_CELL_A1)
+        LOGGER.warning("Cell %s was blank or unavailable.", range_name)
         return "-"
 
     def fetch_group_ids_from_sheet(self) -> list[str]:
@@ -608,12 +670,14 @@ class SeatalkBotService:
     def build_message_payload(
         self,
         now: datetime,
+        card_spec: ImageCardSpec,
         image_bytes: bytes,
     ) -> dict[str, Any]:
         timestamp = format_update_timestamp(now)
-        description_value = self.fetch_fms_update_value()
+        title_text = f"{card_spec.title_prefix} {timestamp}"
+        description_value = self.fetch_fms_update_value(card_spec)
         description = build_card_description(description_value)
-        return build_interactive_message_payload(timestamp, description, self.config.report_link, image_bytes)
+        return build_interactive_message_payload(title_text, description, self.config.report_link, image_bytes)
 
     def load_saved_group_id(self) -> str:
         if not GROUP_STATE_FILE.exists():
@@ -769,6 +833,15 @@ class SeatalkBotService:
     def status(self) -> dict[str, Any]:
         with self.seatalk_group_lock:
             group_id_configured = bool(self.seatalk_group_ids)
+        image_cards = [
+            {
+                "title_prefix": card_spec.title_prefix,
+                "tab_name": card_spec.tab_name,
+                "capture_range": card_spec.capture_range,
+                "fms_update_cell": card_spec.fms_update_cell_a1,
+            }
+            for card_spec in self.build_image_card_specs()
+        ]
         return {
             "running": self.run_lock.locked(),
             "last_run_started_at": self.last_run_started_at.isoformat() if self.last_run_started_at else None,
@@ -781,6 +854,7 @@ class SeatalkBotService:
             "last_callback_event_type": self.last_callback_event_type,
             "last_error": self.last_error,
             "capture_range": self.config.capture_range,
+            "image_cards": image_cards,
             "send_interval_minutes": self.config.send_interval_minutes,
             "tab_name": self.config.tab_name,
             "seatalk_group_id_configured": group_id_configured,
